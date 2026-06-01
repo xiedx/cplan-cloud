@@ -1,0 +1,21 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: cplan-notify
+
+# RocketMQ
+rocketmq:
+  name-server: "${ROCKETMQ_NAMESRV:127.0.0.1:9876}"
+  consumer:
+    group: cplan-notify-consumer
+
+# SSE configuration
+cplan:
+  notify:
+    sse-timeout-minutes: 30
+
+logging:
+  level:
+    com.cplan.notify: DEBUG

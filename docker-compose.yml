@@ -1,0 +1,130 @@
+version: '3.8'
+
+services:
+  # ---- Nacos (Service Registry + Config Center) ----
+  nacos:
+    image: nacos/nacos-server:v2.3.2
+    container_name: cplan-nacos
+    environment:
+      MODE: standalone
+      SPRING_DATASOURCE_PLATFORM: mysql
+      MYSQL_SERVICE_HOST: mysql
+      MYSQL_SERVICE_PORT: 3306
+      MYSQL_SERVICE_DB_NAME: nacos_config
+      MYSQL_SERVICE_USER: root
+      MYSQL_SERVICE_PASSWORD: "${MYSQL_ROOT_PASSWORD:-cplan123456}"
+      MYSQL_SERVICE_DB_PARAM: "characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false&allowPublicKeyRetrieval=true"
+    ports:
+      - "8848:8848"
+      - "9848:9848"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- RocketMQ NameServer ----
+  rocketmq-namesrv:
+    image: apache/rocketmq:5.1.4
+    container_name: cplan-rocketmq-namesrv
+    command: sh mqnamesrv
+    ports:
+      - "9876:9876"
+    environment:
+      JAVA_OPT_EXT: "-server -Xms512m -Xmx512m"
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- RocketMQ Broker ----
+  rocketmq-broker:
+    image: apache/rocketmq:5.1.4
+    container_name: cplan-rocketmq-broker
+    command: sh mqbroker -n rocketmq-namesrv:9876 autoCreateTopicEnable=true
+    ports:
+      - "10911:10911"
+      - "10909:10909"
+    environment:
+      JAVA_OPT_EXT: "-server -Xms1g -Xmx1g"
+    depends_on:
+      - rocketmq-namesrv
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- MySQL 8.0 ----
+  mysql:
+    image: mysql:8.0
+    container_name: cplan-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-cplan123456}"
+      MYSQL_USER: cplan
+      MYSQL_PASSWORD: "${MYSQL_USER_PASSWORD:-cplan@user123}"
+      TZ: UTC
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --default-time-zone=+00:00
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "--password=${MYSQL_ROOT_PASSWORD:-cplan123456}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- Redis 7 ----
+  redis:
+    image: redis:7-alpine
+    container_name: cplan-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --requirepass "${REDIS_PASSWORD:-cplan@redis123}" --appendonly yes
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-cplan@redis123}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- MinIO ----
+  minio:
+    image: minio/minio:latest
+    container_name: cplan-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: "${MINIO_ROOT_USER:-cplan-minio}"
+      MINIO_ROOT_PASSWORD: "${MINIO_ROOT_PASSWORD:-cplan@minio123}"
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+volumes:
+  mysql-data:
+  redis-data:
+  minio-data:
+
+networks:
+  cplan-net:
+    driver: bridge

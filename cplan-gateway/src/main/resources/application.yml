@@ -1,0 +1,77 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: cplan-gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true
+          lower-case-service-id: true
+      routes:
+        # ---- User Service ----
+        - id: cplan-user
+          uri: lb://cplan-user
+          predicates:
+            - Path=/api/user/**
+          filters:
+            - StripPrefix=0
+
+        # ---- Creation Service ----
+        - id: cplan-creation
+          uri: lb://cplan-creation
+          predicates:
+            - Path=/api/creation/**
+          filters:
+            - StripPrefix=0
+
+        # ---- Compose Service ----
+        - id: cplan-compose
+          uri: lb://cplan-compose
+          predicates:
+            - Path=/api/compose/**
+          filters:
+            - StripPrefix=0
+
+        # ---- Storage Service ----
+        - id: cplan-storage
+          uri: lb://cplan-storage
+          predicates:
+            - Path=/api/storage/**
+          filters:
+            - StripPrefix=0
+
+        # ---- Notify Service ----
+        - id: cplan-notify
+          uri: lb://cplan-notify
+          predicates:
+            - Path=/api/notify/**
+          filters:
+            - StripPrefix=0
+
+    # Sentinel circuit-breaking for gateway
+    sentinel:
+      transport:
+        dashboard: localhost:8858
+      datasource:
+        ds-gateway-flow:
+          nacos:
+            server-addr: "${NACOS_SERVER_ADDR:127.0.0.1:8848}"
+            data-id: cplan-gateway-sentinel-flow
+            group-id: DEFAULT_GROUP
+            data-type: json
+            rule-type: gw-flow
+
+# ---- JWT configuration — overridden by Nacos Config (cplan-common.yaml) ----
+cplan:
+  jwt:
+    secret: "${CPLAN_JWT_SECRET:cplan-default-secret-key-change-in-production-32chars-min}"
+    expire-seconds: 86400
+
+# ---- Logging ----
+logging:
+  level:
+    com.cplan.gateway: DEBUG
+    org.springframework.cloud.gateway: INFO

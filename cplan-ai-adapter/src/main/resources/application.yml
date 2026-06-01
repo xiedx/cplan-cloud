@@ -1,0 +1,35 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: cplan-ai-adapter
+
+# RocketMQ
+rocketmq:
+  name-server: "${ROCKETMQ_NAMESRV:127.0.0.1:9876}"
+  producer:
+    group: cplan-ai-adapter-producer
+    send-message-timeout: 30000
+
+# LLM configuration — overridden by Nacos Config
+cplan:
+  llm:
+    endpoint: "${CPLAN_LLM_ENDPOINT:https://api.deepseek.com/v1/chat/completions}"
+    api-key: "${CPLAN_LLM_API_KEY:sk-placeholder-change-in-nacos}"
+    model: "deepseek-chat"
+    timeout-seconds: 120
+    max-tokens: 4096
+  video-gen:
+    endpoint: "${CPLAN_VIDEO_GEN_ENDPOINT:https://api.jimeng.ai/v1/video/generate}"
+    api-key: "${CPLAN_VIDEO_GEN_API_KEY:sk-placeholder-change-in-nacos}"
+    max-retries: 3
+    initial-delay-ms: 1000
+    backoff-multiplier: 2.0
+    max-delay-ms: 30000
+    polling-interval-seconds: 10
+    polling-timeout-seconds: 600
+
+logging:
+  level:
+    com.cplan.ai: DEBUG

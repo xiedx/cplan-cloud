@@ -1,0 +1,22 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: cplan-compose
+
+# RocketMQ
+rocketmq:
+  name-server: "${ROCKETMQ_NAMESRV:127.0.0.1:9876}"
+  producer:
+    group: cplan-compose-producer
+    send-message-timeout: 30000
+
+# Temp directory for FFmpeg processing
+cplan:
+  compose:
+    temp-dir: "${java.io.tmpdir}/cplan-compose"
+
+logging:
+  level:
+    com.cplan.compose: DEBUG

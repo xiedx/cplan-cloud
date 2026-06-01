@@ -1,0 +1,74 @@
+sequenceDiagram
+    actor User as 用户
+    participant GW as API Gateway
+    participant US as User Service
+    participant CS as Creation Service
+    participant AA as AI Adapter Service
+    participant MQ as RocketMQ
+    participant NS as Notify Service
+    participant SS as Storage Service
+    participant CP as Compose Service
+
+    Note over User,CP: 阶段一：登录 & 提交大纲
+    User->>GW: POST /api/user/v1/login
+    GW->>US: 路由转发
+    US-->>GW: JWT Token
+    GW-->>User: Token
+
+    User->>GW: POST /api/creation/v1/projects/{id}/outline (带 JWT)
+    GW->>GW: AuthGlobalFilter 验证 JWT，注入 X-User-Id Header
+    GW->>CS: 路由转发
+    CS->>CS: 保存 Outline，创建 VideoTask(SCRIPT_GEN, PENDING)
+    CS->>AA: Feign: POST /internal/ai/v1/script/generate
+    AA->>MQ: 发布消息 Topic:CPLAN_SCRIPT_GEN
+    AA-->>CS: 202 Accepted
+    CS-->>GW: { outlineId, status:PROCESSING }
+    GW-->>User: 返回大纲提交结果
+
+    Note over User,CP: 阶段二：SSE 订阅 & 剧本生成
+    User->>GW: GET /api/notify/v1/sse/subscribe
+    GW->>NS: 路由转发，建立 SSE 长连接
+    NS-->>User: SSE 连接建立
+
+    MQ-->>AA: 消费 CPLAN_SCRIPT_GEN 消息
+    AA->>AA: 调用 LLM API，生成剧本
+    AA->>MQ: 发布 CPLAN_SCRIPT_GEN_DONE，携带剧本内容
+    MQ-->>CS: 消费回调，保存 Script，拆分 Storyboard
+    CS->>MQ: 发布 CPLAN_NOTIFY(TASK_PROGRESS)，进度事件
+    MQ-->>NS: 消费通知消息
+    NS-->>User: SSE 推送：script_ready 事件
+
+    Note over User,CP: 阶段三：用户审核分镜 & 触发视频生成
+    User->>GW: GET /api/creation/v1/projects/{id}/storyboards
+    GW->>CS: 路由转发
+    CS-->>User: 分镜列表
+
+    User->>GW: POST /api/creation/v1/storyboards/{id}/confirm
+    GW->>CS: 路由转发
+    CS->>CS: 更新 Storyboard.status = CONFIRMED
+    CS->>CS: 创建 VideoTask(VIDEO_GEN, PENDING)
+    CS->>AA: Feign: POST /internal/ai/v1/video/generate
+    AA->>MQ: 发布 CPLAN_VIDEO_GEN Topic
+    AA-->>CS: 202 Accepted
+
+    MQ-->>AA: 消费 CPLAN_VIDEO_GEN 消息
+    AA->>AA: 调用文生视频 API（轮询外部任务状态）
+    AA->>SS: Feign: 上传视频片段到 MinIO
+    AA->>MQ: 发布 CPLAN_VIDEO_GEN_DONE，携带 videoUrl
+    MQ-->>CS: 消费，更新 VideoTask = SUCCESS，记录 VideoSegment
+    CS->>CS: 检查项目所有分镜是否完成
+
+    alt 所有分镜已完成
+        CS->>MQ: 发布 CPLAN_COMPOSE_TASK
+        MQ-->>CP: 消费合成任务
+        CP->>CP: FFmpeg 拼接所有 VideoSegment
+        CP->>SS: Feign: 上传最终视频
+        CP->>MQ: 发布 CPLAN_COMPOSE_DONE，携带最终 videoUrl
+        MQ-->>CS: 消费，更新 Project.finalVideoUrl
+        CS->>MQ: 发布 CPLAN_NOTIFY(PROJECT_COMPLETE)
+        MQ-->>NS: 消费
+        NS-->>User: SSE 推送：project_complete 事件（含最终视频 URL）
+    end
+
+    MQ-->>NS: 消费 VIDEO_GEN_DONE 进度通知
+    NS-->>User: SSE 推送：单幕 video_gen_done 事件

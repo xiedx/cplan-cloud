@@ -1,0 +1,55 @@
+# Java build output
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Maven
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+!.mvn/wrapper/maven-wrapper.properties
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Eclipse
+.classpath
+.project
+.settings/
+bin/
+
+# VS Code
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Spring Boot
+*.pid
+
+# Environment files
+.env
+*.env.local
+
+# Docker volumes
+mysql-data/
+redis-data/
+minio-data/
+
+# WorkBuddy internal
+.workbuddy/
+
+# Temporary files
+*.tmp
+*.temp

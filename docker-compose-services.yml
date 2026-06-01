@@ -1,0 +1,141 @@
+version: '3.8'
+
+services:
+  # ---- API Gateway ----
+  cplan-gateway:
+    build:
+      context: ./cplan-gateway
+      dockerfile: Dockerfile
+    container_name: cplan-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      JAVA_OPTS: "-Duser.timezone=UTC -server -Xms256m -Xmx512m"
+    depends_on:
+      - nacos
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- User Service ----
+  cplan-user:
+    build:
+      context: ./cplan-user
+      dockerfile: Dockerfile
+    container_name: cplan-user
+    ports:
+      - "8081:8081"
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      REDIS_HOST: redis
+      JAVA_OPTS: "-Duser.timezone=UTC -server -Xms256m -Xmx512m"
+    depends_on:
+      - nacos
+      - mysql
+      - redis
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- Creation Service ----
+  cplan-creation:
+    build:
+      context: ./cplan-creation
+      dockerfile: Dockerfile
+    container_name: cplan-creation
+    ports:
+      - "8082:8082"
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MYSQL_HOST: mysql
+      ROCKETMQ_NAMESRV: rocketmq-namesrv:9876
+      JAVA_OPTS: "-Duser.timezone=UTC -server -Xms256m -Xmx512m"
+    depends_on:
+      - nacos
+      - mysql
+      - rocketmq-namesrv
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- AI Adapter Service ----
+  cplan-ai-adapter:
+    build:
+      context: ./cplan-ai-adapter
+      dockerfile: Dockerfile
+    container_name: cplan-ai-adapter
+    ports:
+      - "8083:8083"
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      ROCKETMQ_NAMESRV: rocketmq-namesrv:9876
+      JAVA_OPTS: "-Duser.timezone=UTC -server -Xms256m -Xmx512m"
+    depends_on:
+      - nacos
+      - rocketmq-namesrv
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- Compose Service ----
+  cplan-compose:
+    build:
+      context: ./cplan-compose
+      dockerfile: Dockerfile
+    container_name: cplan-compose
+    ports:
+      - "8084:8084"
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      ROCKETMQ_NAMESRV: rocketmq-namesrv:9876
+      JAVA_OPTS: "-Duser.timezone=UTC -server -Xms512m -Xmx1g"
+    depends_on:
+      - nacos
+      - rocketmq-namesrv
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- Storage Service ----
+  cplan-storage:
+    build:
+      context: ./cplan-storage
+      dockerfile: Dockerfile
+    container_name: cplan-storage
+    ports:
+      - "8085:8085"
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      MINIO_ENDPOINT: http://minio:9000
+      JAVA_OPTS: "-Duser.timezone=UTC -server -Xms256m -Xmx512m"
+    depends_on:
+      - nacos
+      - minio
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+  # ---- Notify Service ----
+  cplan-notify:
+    build:
+      context: ./cplan-notify
+      dockerfile: Dockerfile
+    container_name: cplan-notify
+    ports:
+      - "8086:8086"
+    environment:
+      NACOS_SERVER_ADDR: nacos:8848
+      ROCKETMQ_NAMESRV: rocketmq-namesrv:9876
+      JAVA_OPTS: "-Duser.timezone=UTC -server -Xms256m -Xmx512m"
+    depends_on:
+      - nacos
+      - rocketmq-namesrv
+    networks:
+      - cplan-net
+    restart: unless-stopped
+
+networks:
+  cplan-net:
+    external: true

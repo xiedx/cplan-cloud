@@ -1,0 +1,222 @@
+classDiagram
+    class Result~T~ {
+        +int code
+        +String message
+        +T data
+        +static Result~T~ ok(T data)
+        +static Result~T~ fail(ResultCode code)
+        +static Result~T~ fail(int code, String message)
+    }
+
+    class ResultCode {
+        <<enumeration>>
+        SUCCESS(200, "success")
+        BAD_REQUEST(400, "请求参数错误")
+        UNAUTHORIZED(401, "未登录或Token过期")
+        FORBIDDEN(403, "无权限")
+        NOT_FOUND(404, "资源不存在")
+        USER_EXIST(1001, "用户名已存在")
+        PASSWORD_ERROR(1002, "密码错误")
+        PROJECT_NOT_FOUND(2001, "项目不存在")
+        STORYBOARD_NOT_CONFIRMED(2002, "分镜未审核")
+        LLM_INVOKE_ERROR(3001, "LLM调用失败")
+        VIDEO_GEN_TIMEOUT(3002, "视频生成超时")
+        FFMPEG_ERROR(4001, "FFmpeg执行失败")
+        MINIO_UPLOAD_ERROR(4002, "MinIO上传失败")
+        +int code
+        +String message
+    }
+
+    class BizException {
+        +int code
+        +String message
+        +BizException(ResultCode resultCode)
+        +BizException(int code, String message)
+    }
+
+    class JwtUtil {
+        -String secret
+        -long expireSeconds
+        +String generateToken(Long userId, String username)
+        +Claims parseToken(String token)
+        +boolean isExpired(String token)
+        +Long getUserId(String token)
+    }
+
+    class UserContextDTO {
+        +Long userId
+        +String username
+        +static UserContextDTO fromHeader(HttpHeaders headers)
+    }
+
+    class User {
+        +Long id
+        +String username
+        +String email
+        +String passwordHash
+        +String avatarUrl
+        +Integer status
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+
+    class UserService {
+        <<interface>>
+        +Result register(RegisterRequest req)
+        +Result~LoginResponse~ login(LoginRequest req)
+        +Result~UserDTO~ getUserInfo(Long userId)
+    }
+
+    class UserServiceImpl {
+        -UserMapper userMapper
+        -JwtUtil jwtUtil
+        -RedisTemplate redisTemplate
+        +Result register(RegisterRequest req)
+        +Result~LoginResponse~ login(LoginRequest req)
+        +Result~UserDTO~ getUserInfo(Long userId)
+    }
+
+    class Project {
+        +Long id
+        +Long userId
+        +String title
+        +String description
+        +Integer status
+        +String finalVideoUrl
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+
+    class Outline {
+        +Long id
+        +Long projectId
+        +String content
+        +String enrichedContent
+        +Integer status
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+
+    class Script {
+        +Long id
+        +Long projectId
+        +Long outlineId
+        +String content
+        +String llmModel
+        +Integer status
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+
+    class Storyboard {
+        +Long id
+        +Long projectId
+        +Long scriptId
+        +Integer sequenceNo
+        +String sceneDescription
+        +String dialogue
+        +String imagePrompt
+        +String videoPrompt
+        +Integer status
+        +String videoUrl
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+
+    class VideoTask {
+        +Long id
+        +Long projectId
+        +Long storyboardId
+        +String taskType
+        +String taskStatus
+        +String externalTaskId
+        +String errorMessage
+        +Integer retryCount
+        +LocalDateTime startedAt
+        +LocalDateTime finishedAt
+        +LocalDateTime createdAt
+        +LocalDateTime updatedAt
+    }
+
+    class VideoSegment {
+        +Long id
+        +Long projectId
+        +Long storyboardId
+        +String fileKey
+        +String fileUrl
+        +Integer durationMs
+        +Long fileSize
+        +Integer status
+        +LocalDateTime createdAt
+    }
+
+    class VideoTaskStateMachine {
+        +void transition(VideoTask task, TaskEvent event)
+        +boolean canTransit(String currentStatus, TaskEvent event)
+    }
+
+    class TaskEvent {
+        <<enumeration>>
+        START
+        SUCCESS
+        FAIL
+        RETRY
+    }
+
+    class AiAdapterFeignClient {
+        <<interface>>
+        +Result triggerScriptGen(ScriptGenRequest req)
+        +Result triggerVideoGen(VideoGenRequest req)
+    }
+
+    class SseService {
+        <<interface>>
+        +SseEmitter subscribe(Long userId)
+        +void pushEvent(Long userId, SseEventDTO event)
+        +void remove(Long userId)
+    }
+
+    class SseServiceImpl {
+        -ConcurrentHashMap~Long, SseEmitter~ emitters
+        +SseEmitter subscribe(Long userId)
+        +void pushEvent(Long userId, SseEventDTO event)
+        +void remove(Long userId)
+    }
+
+    class StorageService {
+        <<interface>>
+        +Result~PresignedUrlVO~ generateUploadUrl(String bucket, String key)
+        +Result~PresignedUrlVO~ generateDownloadUrl(String bucket, String key)
+        +void deleteObject(String bucket, String key)
+    }
+
+    class MinioStorageServiceImpl {
+        -MinioClient minioClient
+        +Result~PresignedUrlVO~ generateUploadUrl(String bucket, String key)
+        +Result~PresignedUrlVO~ generateDownloadUrl(String bucket, String key)
+        +void deleteObject(String bucket, String key)
+    }
+
+    class FFmpegUtil {
+        +void concatVideos(List~String~ inputPaths, String outputPath)
+        +void addAudio(String videoPath, String audioPath, String outputPath)
+        +VideoMetaDTO getMetadata(String filePath)
+    }
+
+    Result --> ResultCode : uses
+    BizException --> ResultCode : uses
+    UserServiceImpl ..|> UserService
+    UserServiceImpl --> JwtUtil : uses
+    VideoTaskStateMachine --> TaskEvent : uses
+    VideoTaskStateMachine --> VideoTask : modifies
+    SseServiceImpl ..|> SseService
+    MinioStorageServiceImpl ..|> StorageService
+    MinioStorageServiceImpl --> FFmpegUtil : uses
+    User "1" --> "many" Project : owns
+    Project "1" --> "1" Outline : has
+    Project "1" --> "1" Script : has
+    Project "1" --> "many" Storyboard : contains
+    Project "1" --> "many" VideoTask : tracks
+    Script "1" --> "many" Storyboard : splitsInto
+    Storyboard "1" --> "many" VideoTask : triggers
+    Storyboard "1" --> "1" VideoSegment : produces

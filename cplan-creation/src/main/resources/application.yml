@@ -1,0 +1,44 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: cplan-creation
+  datasource:
+    url: "jdbc:mysql://${MYSQL_HOST:127.0.0.1}:3306/cplan_creation?useUnicode=true&characterEncoding=utf8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC"
+    username: "${MYSQL_USER:root}"
+    password: "${MYSQL_PASSWORD:cplan123456}"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      minimum-idle: 5
+      maximum-pool-size: 20
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.slf4j.Slf4jImpl
+  global-config:
+    db-config:
+      id-type: auto
+      logic-delete-field: isDeleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# RocketMQ
+rocketmq:
+  name-server: "${ROCKETMQ_NAMESRV:127.0.0.1:9876}"
+  producer:
+    group: cplan-creation-producer
+    send-message-timeout: 30000
+
+# OpenFeign
+spring.cloud.openfeign:
+  client:
+    config:
+      default:
+        connectTimeout: 3000
+        readTimeout: 60000
+
+logging:
+  level:
+    com.cplan.creation: DEBUG

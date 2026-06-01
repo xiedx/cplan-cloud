@@ -1,0 +1,22 @@
+server:
+  port: 8085
+
+spring:
+  application:
+    name: cplan-storage
+
+# MinIO configuration — overridden by Nacos Config
+cplan:
+  minio:
+    endpoint: "${MINIO_ENDPOINT:http://127.0.0.1:9000}"
+    access-key: "${MINIO_ACCESS_KEY:cplan-minio}"
+    secret-key: "${MINIO_SECRET_KEY:cplan@minio123}"
+    segments-bucket: "cplan-segments"
+    finals-bucket: "cplan-finals"
+    avatars-bucket: "cplan-avatars"
+    temp-bucket: "cplan-temp"
+    presigned-expiry-seconds: 3600
+
+logging:
+  level:
+    com.cplan.storage: DEBUG
