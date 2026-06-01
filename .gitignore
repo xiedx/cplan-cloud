@@ -42,14 +42,6 @@ logs/
 .env
 *.env.local
 
-# Docker volumes
-mysql-data/
-redis-data/
-minio-data/
-
-# WorkBuddy internal
-.workbuddy/
-
 # Temporary files
 *.tmp
 *.temp
