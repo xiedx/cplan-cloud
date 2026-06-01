@@ -1,3 +1,4 @@
+```mermaid
 classDiagram
     class Result~T~ {
         +int code
@@ -220,3 +221,4 @@ classDiagram
     Script "1" --> "many" Storyboard : splitsInto
     Storyboard "1" --> "many" VideoTask : triggers
     Storyboard "1" --> "1" VideoSegment : produces
+```

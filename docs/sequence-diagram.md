@@ -1,3 +1,4 @@
+```mermaid
 sequenceDiagram
     actor User as 用户
     participant GW as API Gateway
@@ -72,3 +73,4 @@ sequenceDiagram
 
     MQ-->>NS: 消费 VIDEO_GEN_DONE 进度通知
     NS-->>User: SSE 推送：单幕 video_gen_done 事件
+```
